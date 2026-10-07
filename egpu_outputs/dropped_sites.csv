@@ -1,0 +1,26 @@
+country,site,reason
+Botswana,Business Weekly & Review,Fewer than 2 valid baseline months
+Djibouti,Djibouti Post,Baseline sigma_i is zero or missing
+Guinea,Guine Sud,Baseline sigma_i is zero or missing
+Kenya,Citizen Digital,Baseline sigma_i is zero or missing
+Kenya,Citizen TV News,Baseline sigma_i is zero or missing
+Kenya,Taifa Leo,Baseline sigma_i is zero or missing
+Madagascar,No Comment,Baseline sigma_i is zero or missing
+Mali,Le Challenger,Baseline sigma_i is zero or missing
+Mali,Maliweb,Baseline sigma_i is zero or missing
+Mauritania,Alakhbar,Baseline sigma_i is zero or missing
+Mauritania,Alwiam,Baseline sigma_i is zero or missing
+Mauritania,Cridem,Baseline sigma_i is zero or missing
+Mauritania,Le Quotidien de Nouakchott,Baseline sigma_i is zero or missing
+Mauritius,L'Express Property,Baseline sigma_i is zero or missing
+Mauritius,MBC News,Baseline sigma_i is zero or missing
+Mauritius,Top FM,Baseline sigma_i is zero or missing
+Niger,Journal du Niger,Baseline sigma_i is zero or missing
+Niger,Koaci  Niger tag,Baseline sigma_i is zero or missing
+Niger,Sahara FM (Agadez),Baseline sigma_i is zero or missing
+Sao Tome and Principe,Tla Nn,Baseline sigma_i is zero or missing
+Seychelles,Seychelles Independent,Baseline sigma_i is zero or missing
+Sudan,Sudan Independent,Baseline sigma_i is zero or missing
+Togo,Togo Breaking News,Fewer than 2 valid baseline months
+Zambia,Mwebantu,Baseline sigma_i is zero or missing
+Zambia,The Post,Baseline sigma_i is zero or missing
