@@ -223,15 +223,18 @@
     <section id="s1">
       <p class="part-label">3. Methodology</p>
       <h2><span class="num">3.1</span>Data Sources and Description</h2>
-      <p>The EgPU index reuses article data already collected and screened by the production EPU/ETU/TPU scraping workflow; the pipeline reads this archive but never re-scrapes or modifies it. Three layers of input data feed the index.</p>
-      <ol>
-        <li><strong>News article archive</strong> (<code>Scrapped_Top_Articles</code>) — organized <code>country / site / year-month / articles_*.csv(.gz)</code>. Each row carries a <code>url</code>, <code>title</code>, and <code>text</code> field; title and text are concatenated and scored together.</li>
-        <li><strong>Multilingual keyword dictionary</strong> (<code>energy_policy_uncertainty_keywords.json</code>) — three term lists per country (<code>ENERGY_TERMS</code>, <code>POLICY_TERMS</code>, <code>UNCERTAINTY_TERMS</code>) covering all 54 African countries across 15 languages: Afrikaans, Amharic, Arabic, Seychellois Creole, English, Spanish, French, Malagasy, Portuguese, Kirundi, Kinyarwanda, Somali, Swahili, Tigrinya, and Zulu. Policy and Uncertainty terms are copied unchanged from the canonical EPTU dictionary used by the EPU, ETU, and TPU indices; only the Energy term list is new, assembled per country from its assigned languages.</li>
-        <li><strong>GDP-PPP series</strong> (<code>gdp_ppp_monthly_wide.csv</code>) — monthly GDP-PPP in millions of US dollars per country, used only at the regional/continental aggregation stage as the country weight.</li>
-      </ol>
-      <p>Three supplementary series in the project repository support the oil-price analysis (RQ3) and macro context rather than the index construction itself: the Cushing, OK WTI monthly spot price (<code>Cushing_OK_WTI_Spot_Price_FOB.csv</code>, EIA/Thomson Reuters) and the FRED <code>MCOILWTICO</code> monthly WTI series (<code>Fred DPB.xlsx</code>); country-level retail fuel/LPG price series for Nigeria, Algeria, Egypt, South Africa, Tunisia, Zambia, and Ghana; and macro context workbooks (<code>Selected Macro Indicators.xlsx</code>: real GDP growth, CPI, exports, imports, exchange rates; <code>MultipleFrequencyModelData.xlsx</code>: multi-frequency nowcasting inputs).</p>
+      <ul>
+        <li>Reuses article data already collected and screened by the EPU/ETU/TPU scraping workflow. Never re-scrapes, never modifies it.</li>
+        <li><strong>News archive</strong> (<code>Scrapped_Top_Articles</code>) — <code>country / site / year-month / articles_*.csv(.gz)</code>. Each row: <code>url</code>, <code>title</code>, <code>text</code>.</li>
+        <li><strong>Keyword dictionary</strong> (<code>energy_policy_uncertainty_keywords.json</code>) — Energy / Policy / Uncertainty term lists per country. 54 countries, 15 languages. Policy and Uncertainty terms copied from the canonical EPTU dictionary; only the Energy list is new.</li>
+        <li><strong>GDP-PPP series</strong> (<code>gdp_ppp_monthly_wide.csv</code>) — monthly GDP-PPP, US$m per country. Used only for aggregation weights.</li>
+        <li><strong>Supplementary (RQ3 / macro context, not index construction):</strong> Cushing OK WTI spot price and FRED MCOILWTICO — both monthly oil benchmarks; retail fuel/LPG prices for Nigeria, Algeria, Egypt, South Africa, Tunisia, Zambia, Ghana; macro workbooks for GDP growth, CPI, trade, exchange rates.</li>
+      </ul>
       <h3>Temporal coverage</h3>
-      <p>The frozen baseline spans January 2015 – December 2025 (132 months). Months after December 2025 are scored in update mode against the frozen parameters; the archive is currently scored through September 2026.</p>
+      <ul>
+        <li>Frozen baseline: January 2015 – December 2025 (132 months).</li>
+        <li>Post-baseline months: scored in update mode against frozen parameters. Currently through September 2026.</li>
+      </ul>
       <h3>Scale</h3>
       <div class="stat-row">
         <div class="stat"><span class="n">54</span><span class="l">countries covered</span></div>
@@ -239,102 +242,134 @@
         <div class="stat"><span class="n">12,381,332</span><span class="l">deduplicated baseline articles</span></div>
         <div class="stat"><span class="n">186,876</span><span class="l">classified as EgPU (1.51%)</span></div>
       </div>
-      <p>Coverage is uneven by design of the underlying news archive: Djibouti has the thinnest baseline corpus (2,773 articles, 2 sites) and Nigeria the deepest (2,780,490 articles, 7 sites).</p>
+      <ul>
+        <li>Coverage is uneven by design: Djibouti thinnest (2,773 articles, 2 sites); Nigeria deepest (2,780,490 articles, 7 sites).</li>
+      </ul>
     </section>
 
     <section id="s2">
       <h2><span class="num">3.2</span>Data Preprocessing</h2>
-      <p>Each country-month is processed as one unit so deduplication stays exact and reproducible.</p>
+      <ul>
+        <li>Each country-month processed as one unit, so deduplication stays exact and reproducible.</li>
+      </ul>
       <h3>Reading</h3>
-      <p>Only <code>url</code>, <code>title</code>, and <code>text</code> are streamed from each article file (a lightweight CSV/Gzip reader, UTF-8, with an unbounded field-size limit for long article bodies). A file that is unreadable, empty, or missing the <code>title</code>/<code>text</code> columns is logged to <code>skipped_article_files.csv</code> with a reason, and the scan continues past it — isolated bad files never stop a run.</p>
+      <ul>
+        <li>Streams only <code>url</code>, <code>title</code>, <code>text</code> per article. UTF-8, unbounded field size.</li>
+        <li>Unreadable/empty/malformed file → logged to <code>skipped_article_files.csv</code>, scan continues. One bad file never stops a run.</li>
+      </ul>
       <h3>Deduplication</h3>
-      <p>Every article is assigned a key: if it has a URL, the key is the canonical form (host with any leading <code>www.</code> stripped, lower-cased, path collapsed and trailing slash removed); if it has no URL, the key falls back to the lower-cased title and text. Sites within a country-month are processed in alphabetical order, and only the first occurrence of each key is kept — so when two sites carry the same wire story, the alphabetically first site keeps it and the rest are dropped as cross-source duplicates.</p>
+      <ul>
+        <li>Key = canonical URL (host minus <code>www.</code>, lower-cased, trailing slash stripped), or title+text when there's no URL.</li>
+        <li>Sites processed alphabetically within a country-month. First occurrence of a key wins; later duplicates dropped.</li>
+      </ul>
       <div class="callout">
         <h4>Observed in the latest run</h4>
-        <p>4,782 duplicate rows were removed from the January–September 2026 update out of 2,352 scanned country-site-month groups.</p>
+        <p>4,782 duplicate rows removed from the Jan–Sep 2026 update, out of 2,352 scanned country-site-month groups.</p>
       </div>
       <h3>Counting</h3>
-      <p>For every surviving article, Energy, Policy, and Uncertainty term matches are counted on the combined title + text (see 3.3). Two counters accumulate per site-month: <code>total_articles</code> (every deduplicated article) and <code>egpu_count</code> (articles satisfying the EgPU rule). A site-month with zero total articles is left out rather than recorded as a zero share, so a missing value is never silently treated as "no uncertainty."</p>
+      <ul>
+        <li>Per site-month: <code>total_articles</code> (all deduplicated) and <code>egpu_count</code> (EgPU-classified, see 3.3).</li>
+        <li>Zero-article site-months are excluded, not recorded as a zero share — missing data is never treated as "no uncertainty."</li>
+      </ul>
     </section>
 
     <section id="s3">
       <h2><span class="num">3.3</span>EPUI Construction Procedure</h2>
-      <p>An article <em>a</em> is classified as EgPU (D<span class="sub">a</span> = 1) only when its combined title and text contains at least one term from all three of country <em>c</em>'s lists — Energy (E<span class="sub">c</span>), Policy (P<span class="sub">c</span>), and Uncertainty (U<span class="sub">c</span>):</p>
+      <p>Article <em>a</em> is classified EgPU (D<span class="sub">a</span> = 1) only if its title + text contains at least one term from all three of country <em>c</em>'s lists — Energy (E<span class="sub">c</span>), Policy (P<span class="sub">c</span>), Uncertainty (U<span class="sub">c</span>):</p>
       <div class="formula">D<span class="sub">a</span> = 1 &nbsp;if&nbsp; n<span class="sub">E</span>(a) &gt; 0 &nbsp;and&nbsp; n<span class="sub">P</span>(a) &gt; 0 &nbsp;and&nbsp; n<span class="sub">U</span>(a) &gt; 0<br>D<span class="sub">a</span> = 0 &nbsp;otherwise</div>
-      <p>This is the standard EPU three-component rule applied with Energy in place of the Economy component: an article must mention energy, policy, and uncertainty together, but no Economy or Trade term is required. Terms within one component are alternatives (any Energy term satisfies Energy), while a term belongs to exactly one component — the Energy, Policy, and Uncertainty lists are disjoint, so no single keyword can satisfy two components at once.</p>
-      <p>Matching is performed by the shared EPTU matcher (<code>eptu_text_matcher.satisfies_index</code>), the same engine used by the EPU, ETU, and TPU indices, so EgPU inherits its matching guarantees rather than re-implementing them:</p>
       <ul>
-        <li>Unicode NFKC normalization before matching, so visually identical characters in different encodings are treated as equal.</li>
-        <li>Case-insensitive comparison.</li>
-        <li>Whole-word and whole-phrase boundaries only (a term cannot match as a substring of an unrelated word).</li>
-        <li>Matching runs across the concatenated title and body text, not title or body alone.</li>
+        <li>Energy replaces the Economy component of the standard EPU rule. No Economy or Trade term required.</li>
+        <li>Terms within a component are alternatives. Components are disjoint — one keyword can't satisfy two.</li>
+        <li>Matcher: shared with EPU/ETU/TPU (<code>eptu_text_matcher.satisfies_index</code>) — Unicode NFKC normalization, case-insensitive, whole-word/phrase boundaries only, matches across title + body combined.</li>
+        <li>Broad words ("power", "pipeline") excluded alone. Specific phrases only ("power grid", "oil pipeline", "gas pipeline") — cuts false positives.</li>
       </ul>
-      <p>Broad single words that would over-trigger (English "power", "pipeline") are deliberately excluded from the Energy list in favor of specific phrases ("power grid", "power generation", "oil pipeline", "gas pipeline"), which keeps the false-positive rate down without a separate validation pass at the matching stage.</p>
     </section>
 
     <section id="s4">
       <h2><span class="num">3.4</span>Country-Level Index Construction</h2>
-      <p>Construction runs in four steps, each estimated or frozen over the baseline window and then held fixed.</p>
+      <p>Four steps. Each estimated or frozen over the baseline, then held fixed.</p>
       <h3>1. Site-level share</h3>
-      <p>For site <em>i</em> in month <em>t</em>: S<span class="sub">it</span> = X<span class="sub">it</span> / T<span class="sub">it</span> (EgPU articles over all deduplicated articles), left missing if T<span class="sub">it</span> = 0.</p>
+      <div class="formula">S<span class="sub">it</span> = X<span class="sub">it</span> / T<span class="sub">it</span></div>
+      <ul><li>EgPU articles over all deduplicated articles for site <em>i</em>, month <em>t</em>. Missing if T<span class="sub">it</span> = 0.</li></ul>
       <h3>2. Site standardization</h3>
-      <p>Each site's share is divided by its own baseline volatility — the population standard deviation of S<span class="sub">it</span> over the baseline months in which the site has a valid share: N<span class="sub">it</span> = S<span class="sub">it</span> / σ<span class="sub">i</span>. A site enters the index only if it has at least two valid baseline months and σ<span class="sub">i</span> &gt; 0; <strong>25 of 262</strong> retained sites failed this test and were dropped before country averaging, almost all because a site's baseline share never moved (σ<span class="sub">i</span> = 0).</p>
+      <div class="formula">N<span class="sub">it</span> = S<span class="sub">it</span> / σ<span class="sub">i</span></div>
+      <ul>
+        <li>σ<span class="sub">i</span> = population SD of the site's share over its baseline months.</li>
+        <li>Site kept only if: ≥ 2 valid baseline months, and σ<span class="sub">i</span> &gt; 0.</li>
+        <li><strong>25 of 262</strong> retained sites failed this and were dropped — almost all a flat baseline share (σ<span class="sub">i</span> = 0).</li>
+      </ul>
       <h3>3. Cross-site country average</h3>
-      <p>For country <em>c</em> in month <em>t</em>, M<span class="sub">ct</span> is the mean of N<span class="sub">it</span> across the retained sites with a valid value that month (the count is stored as <code>n_sites</code>). This keeps the country series comparable even where the number of contributing sites varies.</p>
-      <h3>4. Rescaling to the EgPU index</h3>
-      <p>M<span class="sub">ct</span> is divided by the country's own baseline-average μ<span class="sub">c</span> (the mean of M<span class="sub">ct</span> over the baseline months) and multiplied by 100, so by construction every country index averages exactly 100 over January 2015 – December 2025:</p>
+      <ul><li>M<span class="sub">ct</span> = mean of N<span class="sub">it</span> across retained sites with a valid reading that month (count stored as <code>n_sites</code>).</li></ul>
+      <h3>4. Rescale to the index</h3>
       <div class="formula">EgPU<span class="sub">ct</span> = 100 × (M<span class="sub">ct</span> / μ<span class="sub">c</span>)</div>
+      <ul><li>μ<span class="sub">c</span> = country's own baseline-average M<span class="sub">ct</span>. Every country index averages exactly 100 over Jan 2015 – Dec 2025, by construction.</li></ul>
       <div class="callout amber">
         <h4>Frozen parameters</h4>
-        <p>σ<span class="sub">i</span>, the retained-site list, and μ<span class="sub">c</span> are all estimated once from the baseline and written to <code>baseline_params.json</code>. In update mode (months after December 2025) the identical formulas are applied, but these are read from that frozen file rather than re-estimated; a site that was not part of the baseline is dropped from an update month, never added. This is what keeps a 2026 reading comparable to a 2015 one — the scale never moves under the index.</p>
+        <ul>
+          <li>σ<span class="sub">i</span>, retained-site list, μ<span class="sub">c</span> — estimated once, written to <code>baseline_params.json</code>.</li>
+          <li>Update months (after Dec 2025) reuse these frozen values. A new site is never added post-baseline.</li>
+          <li>Keeps a 2026 reading comparable to a 2015 one — the scale never moves.</li>
+        </ul>
       </div>
-      <p>The result is a <strong>ratio-scale</strong> series: 100 is the country's own historical average, and 200 means twice that average level of energy policy uncertainty.</p>
+      <ul><li><strong>Ratio scale.</strong> 100 = country's own historical average. 200 = double that level.</li></ul>
     </section>
 
     <section id="s5">
       <h2><span class="num">3.5</span>Regional and Continental Aggregation</h2>
-      <p>Country indices sit on a ratio scale and are not directly comparable to one another, so aggregation first converts each country to a common z-score scale before combining.</p>
+      <p>Country indices are a ratio scale — not directly comparable. Aggregation converts each to a z-score first.</p>
       <h3>Country z-score</h3>
       <div class="formula">z<span class="sub">ct</span> = (EgPU<span class="sub">ct</span> − m<span class="sub">c</span>) / s<span class="sub">c</span></div>
-      <p>where m<span class="sub">c</span> and s<span class="sub">c</span> are the country's own baseline mean and population standard deviation of EgPU<span class="sub">ct</span>, frozen once and reused for every later month. A country with a zero or missing s<span class="sub">c</span> is excluded from aggregation.</p>
+      <ul><li>m<span class="sub">c</span>, s<span class="sub">c</span> = country's frozen baseline mean/population SD. Zero or missing s<span class="sub">c</span> → excluded.</li></ul>
       <h3>GDP-PPP weights</h3>
-      <p>Each country's weight is its share of total GDP-PPP among the countries with positive GDP in a fixed universe: w<span class="sub">ct</span> = G<span class="sub">ct</span> / Σ G<span class="sub">jt</span>. A month with no exact GDP figure uses the most recent earlier GDP snapshot (the default carry-forward policy). For a region, the universe is that region's countries that appear in both the baseline z-scores and the GDP file; for Africa, it is every country with valid baseline moments. The five regional universes used are Central, East, North, Southern, and West Africa, grouped by the standard 54-country partition (e.g. West Africa: Benin, Burkina-Faso, Cape Verde, Ivory Coast, Gambia, Ghana, Guinea, Guinea-Bissau, Liberia, Mali, Niger, Nigeria, Senegal, Sierra Leone, Togo).</p>
+      <div class="formula">w<span class="sub">ct</span> = G<span class="sub">ct</span> / Σ G<span class="sub">jt</span></div>
+      <ul>
+        <li>Share of total GDP-PPP across a fixed universe, positive-GDP countries only.</li>
+        <li>No exact-month GDP → carry forward the last available snapshot.</li>
+        <li>Region universe: that region's countries present in both baseline z-scores and the GDP file. Africa universe: every country with valid baseline moments.</li>
+        <li>5 regions: Central, East, North, Southern, West Africa (standard 54-country partition — e.g. West Africa: Benin, Burkina-Faso, Cape Verde, Ivory Coast, Gambia, Ghana, Guinea, Guinea-Bissau, Liberia, Mali, Niger, Nigeria, Senegal, Sierra Leone, Togo).</li>
+      </ul>
       <h3>Weighted aggregate z-score</h3>
-      <div class="formula">Z<span class="sub">Rt</span> = Σ w<span class="sub">ct</span> · z<span class="sub">ct</span>&nbsp;&nbsp;(over the universe)</div>
-      <p>If a country is in the universe but has no EgPU reading that month, its z<span class="sub">ct</span> is treated as 0 — equivalent to imputing its own baseline mean — but it keeps its GDP weight, so a temporary data gap in one country does not remove that country's economic weight from the aggregate.</p>
+      <div class="formula">Z<span class="sub">Rt</span> = Σ w<span class="sub">ct</span> · z<span class="sub">ct</span></div>
+      <ul><li>Country in universe, no EgPU reading that month → z<span class="sub">ct</span> = 0 (imputes its baseline mean), but it keeps its GDP weight.</li></ul>
       <h3>Rescaled aggregate index</h3>
       <div class="formula">Index<span class="sub">Rt</span> = 100 + 10 × ((Z<span class="sub">Rt</span> − m<span class="sub">R</span>) / s<span class="sub">R</span>)</div>
-      <p>where m<span class="sub">R</span> and s<span class="sub">R</span> are the baseline mean and population standard deviation of Z<span class="sub">Rt</span>, frozen after the baseline run. By construction every regional and the Africa-wide aggregate averages 100 with a standard deviation of 10 over the baseline.</p>
-      <p>The regional/continental universe, GDP weights, and the m<span class="sub">R</span>, s<span class="sub">R</span> rescaling parameters are all frozen in <code>aggregate_params.json</code> alongside a methodology fingerprint (a hash of the term dictionary and matcher code); an update run that does not match this fingerprint is refused rather than silently mixing two methodologies.</p>
-      <p>This produces a <strong>z-score scale</strong>, distinct from the country-level ratio scale: a regional reading of 120 means two standard deviations above that region's baseline mean, not "20% above average."</p>
+      <ul>
+        <li>m<span class="sub">R</span>, s<span class="sub">R</span> = baseline mean/population SD of Z<span class="sub">Rt</span>, frozen after the baseline run.</li>
+        <li>Every regional and Africa-wide aggregate: baseline mean 100, SD 10, by construction.</li>
+        <li>Universe, weights, m<span class="sub">R</span>, s<span class="sub">R</span> all frozen in <code>aggregate_params.json</code> with a methodology fingerprint. Fingerprint mismatch → update refused.</li>
+        <li><strong>Z-score scale</strong> — not the country ratio scale. Regional 120 = 2 SD above that region's baseline mean, not "20% above average."</li>
+      </ul>
     </section>
 
     <section id="s6">
       <h2><span class="num">3.6</span>Data Quality and Robustness Procedures</h2>
-      <p>Robustness is built into the pipeline as hard run-time checks rather than left to post-hoc review.</p>
       <ul>
-        <li><strong>Methodology fingerprinting.</strong> A SHA-256 hash of the full term dictionary plus the matcher source code is computed on every run. An update is refused outright if this fingerprint no longer matches the frozen baseline's — i.e. if the keywords, aliases, or matching logic changed after the baseline was built — forcing a full baseline rebuild rather than silently blending two methodologies.</li>
-        <li><strong>Site retention rules, applied consistently.</strong> A site must clear two thresholds to enter the baseline (≥ 2 valid baseline months; non-zero baseline volatility) and must still be on the frozen retained-site list to count in any later month; both exclusion sets are logged with a reason (<code>dropped_sites.csv</code>, <code>update_dropped_sites.csv</code>).</li>
-        <li><strong>Calibration-failure gate.</strong> A baseline run halts before overwriting any existing frozen output if any requested country has no usable articles in the window, or if a country's calibration produces a zero/invalid baseline mean (<code>baseline_country_status.csv</code> records a calibrated/uncalibrated status and reason per country). All 54 countries calibrated successfully in the current baseline.</li>
-        <li><strong>File-level fault tolerance with an audit trail.</strong> Unreadable, empty, or malformed article files are skipped and logged (<code>skipped_article_files.csv</code>) rather than aborting the scan; the project README explicitly flags that a large count, or a concentration in one country/source/month, should be investigated before trusting results.</li>
-        <li><strong>Deduplication audit.</strong> The count of cross-source duplicate rows removed is recorded in every run manifest, so an unusual jump signals a change in source coverage rather than a change in uncertainty.</li>
-        <li><strong>A no-op validation mode.</strong> <code>validate</code> checks input paths, country coverage against the dictionary, the GDP file, and the requested date window without reading a single article or changing any output — a cheap pre-flight before a heavy scan.</li>
-        <li><strong>Full run provenance.</strong> Every run writes a timestamped manifest (<code>reports/egpu_run_*.json</code>) and a <code>latest_run_manifest.json</code> recording the scan window, countries, panel rows scanned, duplicates removed, GDP policy, and the methodology fingerprint, giving each published index value a traceable run.</li>
+        <li><strong>Methodology fingerprinting.</strong> SHA-256 hash of dictionary + matcher code, checked every run. Mismatch vs. frozen baseline → update refused, full rebuild required.</li>
+        <li><strong>Site retention.</strong> ≥ 2 valid baseline months + σ<span class="sub">i</span> &gt; 0 to enter; must stay on the frozen list to count later. Exclusions logged (<code>dropped_sites.csv</code>, <code>update_dropped_sites.csv</code>).</li>
+        <li><strong>Calibration gate.</strong> Baseline halts before overwriting output if any country has no usable articles, or an invalid baseline mean (<code>baseline_country_status.csv</code>). All 54 countries calibrated successfully.</li>
+        <li><strong>File fault tolerance.</strong> Bad files skipped + logged (<code>skipped_article_files.csv</code>), scan continues. README flags: investigate a large count or a concentration in one country/source/month.</li>
+        <li><strong>Dedup audit.</strong> Duplicate-row count recorded in every run manifest.</li>
+        <li><strong>Validate mode.</strong> Checks paths, coverage, window — no article reads, no output changes.</li>
+        <li><strong>Run provenance.</strong> Timestamped manifest per run (<code>reports/egpu_run_*.json</code>) + <code>latest_run_manifest.json</code>.</li>
       </ul>
       <div class="callout amber">
         <h4>Stated limitation</h4>
-        <p>The pipeline's own README carries a research-validation warning: unlike the Policy and Uncertainty terms (inherited from the established EPTU dictionary), the multilingual Energy vocabulary is new and has not yet been validated against hand-labeled samples. The authors commit to reviewing included/excluded articles by country and language for false positives and negatives before publication, and to rebuilding the frozen baseline after any substantive keyword revision.</p>
+        <ul>
+          <li>The multilingual Energy vocabulary is new. Not yet validated against hand-labeled samples.</li>
+          <li>Policy and Uncertainty terms are inherited from the established EPTU dictionary — already validated.</li>
+          <li>Commitment: review included/excluded articles by country and language before publication. Rebuild the frozen baseline after any keyword revision.</li>
+        </ul>
       </div>
     </section>
 
     <section id="t1">
       <p class="part-label">Technical Session</p>
       <h2>Country-Level EPUI Validation</h2>
-      <p class="lede">All validation here runs on the pipeline's actual latest output (<code>egpu_outputs/egpu_index_long.csv</code>, 7,607 country-month rows, 54 countries, through September 2026) — not simulated figures.</p>
+      <p class="lede">Runs on the pipeline's actual latest output — <code>egpu_outputs/egpu_index_long.csv</code>, 7,607 country-month rows, 54 countries, through September 2026. Not simulated.</p>
       <h3>Construction check</h3>
-      <p>Every one of the 54 countries' baseline (Jan 2015 – Dec 2025) average equals <strong>100.0000</strong> exactly, confirming the rescaling step is implemented as specified rather than approximately.</p>
+      <ul><li>All 54 countries' baseline (Jan 2015 – Dec 2025) average = <strong>100.0000</strong> exactly. Rescaling implemented as specified.</li></ul>
       <h3>Event-alignment test</h3>
-      <p>Seven documented energy-policy shocks were checked against the country index in the corresponding month. Six show a clear, correctly-timed spike; one does not.</p>
+      <ul><li>Seven documented energy-policy shocks checked against the index. Six confirmed, correctly timed. One not.</li></ul>
       <div class="tbl-wrap">
         <table>
           <thead><tr><th>Event</th><th>Country</th><th class="num">Month before</th><th class="num">Event month</th><th>Signal</th></tr></thead>
@@ -349,21 +384,33 @@
           </tbody>
         </table>
       </div>
-      <p>The Senegal and Nigeria misses are worth stating plainly rather than omitting: Senegal's August 2024 reading is in fact the lowest value in its 2024 series, the opposite of the expected direction, and Nigeria's subsidy removal — arguably the single largest African energy-policy event in the sample window — produced no exceptional spike at all (its 2023 index ranges only 78–122, close to its own historical range). Both deserve a manual article-sample review before the index is cited as having validated these two events; this is exactly the kind of check the pipeline's own README calls for before publication.</p>
+      <ul>
+        <li><strong>Senegal:</strong> August 2024 is the <em>lowest</em> value of its 2024 series — opposite of expected.</li>
+        <li><strong>Nigeria:</strong> arguably the largest African energy-policy event in the sample — no spike. 2023 index stays 78–122, within normal range.</li>
+        <li>Both need a manual article-sample review before being cited as confirmed. The README already calls for this check.</li>
+      </ul>
       <h3>Why coverage depth changes index behavior</h3>
-      <p>The six confirmed events share a feature Nigeria and Senegal do not: Zimbabwe, Egypt, Sudan, South Africa, and Angola each have 2–7 retained sites, but so does Nigeria (7). The more informative pattern is single-site countries: Djibouti, Equatorial Guinea, and Mauritania are each covered by exactly one retained site, and their index swings far more violently than any multi-site country — Djibouti alone reaches the series' maximum of 3,828 (July 2019, on 1 site), against a post-baseline median of 82.8 and a mean of 109.1 across all 7,607 rows.</p>
+      <ul>
+        <li>Confirmed events: countries with 2–7 retained sites. Nigeria also has 7, yet misses.</li>
+        <li>Single-site countries (Djibouti, Equatorial Guinea, Mauritania) swing far more violently than any multi-site country.</li>
+        <li>Djibouti hits the series max — 3,828 (Jul-19, 1 site) — vs. a post-baseline median of 82.8, mean 109.1 across all 7,607 rows.</li>
+      </ul>
       <div class="callout">
         <h4>Reading this correctly</h4>
-        <p>This is the expected signature of the cross-site-averaging step (Section 3.4): averaging <em>N</em> independent site signals suppresses idiosyncratic noise by a factor related to <em>N</em>, so a 1-site country index is mechanically far noisier than a 6–7-site one. It is not a defect — the formula is working as specified — but it means single-site country readings should be read with materially wider uncertainty than Nigeria- or Ghana-sized series, and any cross-country ranking of index levels should control for <code>n_sites</code> rather than compare raw values directly.</p>
+        <ul>
+          <li>Expected: averaging <em>N</em> independent sites suppresses noise. 1-site index is mechanically noisier than a 6–7-site one. Not a defect.</li>
+          <li>Single-site readings carry wider uncertainty than Nigeria- or Ghana-sized series.</li>
+          <li>Rule: control for <code>n_sites</code> when ranking countries — don't compare raw values directly.</li>
+        </ul>
       </div>
       <h3>Zero and extreme values are genuine, not errors</h3>
-      <p>The series minimum (0.0, Algeria, December 2019) reflects a month in which zero qualifying articles were found across Algeria's retained sites that month — a true zero share, not a missing value (missing site-months are excluded upstream, per Section 3.2, rather than recorded as zero).</p>
+      <ul><li>Series minimum (0.0, Algeria, Dec-19): zero qualifying articles that month — a true zero, not a missing value.</li></ul>
     </section>
 
     <section id="t2">
       <h2>Regional-Level Validation</h2>
       <h3>Construction check</h3>
-      <p>All five regional aggregates (<code>Regional_Output/*_egpu_aggregate_long.csv</code>) average exactly <strong>100</strong> with a population standard deviation of exactly <strong>10</strong> over the baseline — the GDP-weighted z-score rescaling (Section 3.5) is behaving as specified.</p>
+      <ul><li>All five regional aggregates average exactly <strong>100</strong>, SD exactly <strong>10</strong>, over the baseline. GDP-weighted rescaling (3.5) behaves as specified.</li></ul>
       <div class="tbl-wrap">
         <table>
           <thead><tr><th>Region</th><th class="num">Countries</th><th class="num">GDP covered (Sep&nbsp;26, US$m)</th><th class="num">Baseline mean / SD</th><th class="num">Latest (Sep&nbsp;26)</th><th>Baseline low → high</th></tr></thead>
@@ -376,32 +423,54 @@
           </tbody>
         </table>
       </div>
-      <p>Country counts per region match the fixed universes defined in Section 3.5 exactly (e.g. West Africa's 15 reflect the standard partition, Central Africa's 7), and every region's GDP coverage is positive and complete through the latest run — no region is being aggregated from a degraded or partial country set.</p>
+      <ul>
+        <li>Country counts match the fixed universes defined in 3.5 exactly (e.g. West Africa 15, Central Africa 7).</li>
+        <li>GDP coverage positive and complete through the latest run — no region aggregated from a partial country set.</li>
+      </ul>
       <h3>Event propagation test</h3>
-      <p>South Africa's load-shedding escalation and the February 2023 National State of Disaster are the cleanest single-country shock in the sample (see Country-Level Validation). If the GDP-weighted aggregation in Section 3.5 is working correctly, that shock should be visible in the Southern Africa regional index — damped, because South Africa is only one of 13 countries in the universe, but still directionally clear. It is:</p>
+      <ul><li>South Africa's load-shedding / Feb-23 National State of Disaster is the cleanest single-country shock in the sample. Should show up damped in Southern Africa's regional index (South Africa = 1 of 13 countries). It does:</li></ul>
       <figure>
         <img src="images/southern_africa_egpu_aggregate_plot.png" alt="Southern Africa GDP-weighted aggregate EgPU index, January 2015 to September 2026, showing a sharp peak in January–February 2023" loading="lazy">
         <figcaption>Southern Africa aggregate EgPU, GDP-weighted (actual pipeline output). The Jan–Feb 2023 peak coincides with South Africa's National State of Disaster.</figcaption>
       </figure>
-      <p>The region moved from 101.6 (Dec 2022) to 124.7 (Jan 2023) and 131.4 (Feb 2023) — roughly a 2.5–3 standard-deviation move on a series whose baseline SD is 10 by construction — before relaxing back toward 102 by June 2023. This is the expected behavior of a correctly-weighted aggregate: a large single-country shock is visible and roughly timed right, but is not mistaken for a region-wide event, because the other 12 countries' GDP weight pulls the peak down from what South Africa's own country index showed (246–287).</p>
+      <ul>
+        <li>Dec-22: 101.6 → Jan-23: 124.7 → Feb-23: 131.4 — a ~2.5–3 SD move (baseline SD = 10) — back to ~102 by Jun-23.</li>
+        <li>Correct behavior: visible and roughly timed, but not mistaken for a region-wide event. The other 12 countries' GDP weight pulls the peak down from South Africa's own country reading (246–287).</li>
+      </ul>
     </section>
 
     <section id="t3">
       <h2>Continental-Level Validation</h2>
       <h3>Construction check</h3>
-      <p>The Africa-wide aggregate (<code>Regional_Output/africa_egpu_aggregate_long.csv</code>, all 54 countries, GDP-PPP of <strong>US$11.6 trillion</strong> covered as of September 2026) averages exactly 100 with a population SD of exactly 10 over the baseline, and every one of its 141 months has full 54-country GDP coverage — no silent drop in country count anywhere in the published series.</p>
+      <ul>
+        <li>Africa aggregate — all 54 countries, <strong>US$11.6tn</strong> GDP-PPP covered as of Sep 2026.</li>
+        <li>Averages exactly 100, SD exactly 10, over the baseline. Full 54-country GDP coverage in every one of its 141 months.</li>
+      </ul>
       <figure>
         <img src="images/africa_egpu_aggregate_plot.png" alt="Africa-wide GDP-weighted aggregate EgPU index, January 2015 to September 2026" loading="lazy">
         <figcaption>Africa aggregate EgPU, GDP-weighted, January 2015 – September 2026 (actual pipeline output).</figcaption>
       </figure>
       <h3>Does a single-country shock show through at continental scale?</h3>
-      <p>Southern Africa's load-shedding spike (see Regional-Level Validation) is visible but small at the Africa-wide level — 97.2 (Dec-22) → 110.1 (Jan-23) → 113.2 (Feb-23) — about one standard deviation, roughly a third of the move seen in the Southern Africa regional index alone. That is the correct direction of attenuation: South Africa's GDP is large but is still one country's weight inside a 54-country, US$11.6tn universe, so a national shock should visibly move the continental index without dominating it. The other single-country events checked at country level (Zimbabwe Jan-19, Sudan Jun-21, Egypt Oct/Nov-16) do <strong>not</strong> produce a visible continental peak on their own — consistent with those economies' smaller GDP-PPP weight, and a useful boundary on what the Africa-wide index can be expected to detect: it is built to register continent-scale or large-economy energy-policy stress, not to proxy for any single small country's news cycle.</p>
+      <ul>
+        <li>Southern Africa's load-shedding spike: visible but small continent-wide — 97.2 (Dec-22) → 110.1 (Jan-23) → 113.2 (Feb-23). ~1 SD, about a third of the regional move. Correct attenuation.</li>
+        <li>Zimbabwe (Jan-19), Sudan (Jun-21), Egypt (Oct/Nov-16): <strong>no</strong> visible continental peak on their own — smaller GDP-PPP weight.</li>
+        <li>Boundary: built to register continent-scale or large-economy stress, not a single small country's news cycle.</li>
+      </ul>
       <div class="callout amber">
         <h4>Current trend — not yet attributed to a dated event</h4>
-        <p>The continental index's all-time high in the published series is its most recent reading — 162.3 in September 2026, following a visible climb from roughly 100–110 in 2025 — and North Africa's regional index (169.9) reaches its own series maximum in the same month. Because this trend sits inside 2025–2026, outside the window the paper's documented events cover, it should be checked against actual 2025–2026 North African/continental energy-policy developments before being cited as a confirmed signal, rather than asserted here. Flagging it is itself part of the validation discipline Section 3.6 commits to: review before publication, don't assume every post-baseline move is explained.</p>
+        <ul>
+          <li>All-time high is the most recent reading: 162.3 (Sep-26), climbing from ~100–110 in 2025.</li>
+          <li>North Africa's regional index (169.9) hits its own series max the same month.</li>
+          <li>Sits outside the window the paper's documented events cover. Needs checking against actual 2025–2026 developments before being cited — not asserted here.</li>
+        </ul>
       </div>
       <h3>Summary for the paper</h3>
-      <p>Across all three levels — country, regional, continental — the frozen-baseline rescaling is numerically exact (100/0 and 100/10 hold without rounding error at every level and in every one of the 54 + 5 + 1 = 60 series checked), GDP coverage is complete, and five of seven spot-checked historical shocks produce a correctly timed and correctly attenuated signal at the level(s) where they should appear. Two exceptions (Nigeria's 2023 subsidy removal, Senegal's August 2024 commission) and one unexplained recent uptrend are reported rather than smoothed over, and are the concrete items to carry into the manual article-sample review the README already calls for before publication.</p>
+      <ul>
+        <li>60/60 series checked (54 countries + 5 regions + Africa) hit their baseline targets exactly — 100/0 or 100/10, no rounding error.</li>
+        <li>GDP coverage complete throughout.</li>
+        <li>5 of 7 spot-checked historical shocks: correctly timed, correctly attenuated signal.</li>
+        <li>2 misses (Nigeria 2023, Senegal Aug-24) + 1 unexplained uptrend: reported, not smoothed over. Carry into the manual article-sample review the README calls for.</li>
+      </ul>
     </section>
 
   </main>
