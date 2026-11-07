@@ -1,0 +1,17 @@
+country,site,reason,stage
+Eswatini,Eswatini Press,sigma_i is 0 or NaN in calibration window,
+Kenya,Kenyans.co.ke,sigma_i is 0 or NaN in calibration window,
+Mali,Sahelien.com,sigma_i is 0 or NaN in calibration window,
+Niger,Agence Nigrienne de Presse (ANP),<2 valid months in calibration window,
+Niger,Journal du Niger,<2 valid months in calibration window,
+Sao Tome and Principe,Jornal Tropical,sigma_i is 0 or NaN in calibration window,
+Zambia,Zambia Daily Mail,<2 valid months in calibration window,
+Botswana,Business Weekly & Review,newspaper not in frozen keep_sites,after_history
+Eswatini,Eswatini Press,newspaper not in frozen keep_sites,after_history
+Kenya,Kenyans.co.ke,newspaper not in frozen keep_sites,after_history
+Liberia,Daily Observer,newspaper not in frozen keep_sites,after_history
+Mali,Sahelien.com,newspaper not in frozen keep_sites,after_history
+Niger,Agence Nigrienne de Presse (ANP),newspaper not in frozen keep_sites,after_history
+Niger,Journal du Niger,newspaper not in frozen keep_sites,after_history
+Sao Tome and Principe,Jornal Tropical,newspaper not in frozen keep_sites,after_history
+Zambia,Zambia Daily Mail,newspaper not in frozen keep_sites,after_history
